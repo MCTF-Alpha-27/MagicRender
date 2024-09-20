@@ -10,7 +10,7 @@ import cv2
 from colorama import Fore, init
 
 __author__ = "MCTF-Alpha-27"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 os.system(f"title MagicRender v{__version__} author: {__author__}")
 logging.basicConfig(filename="latest.log", level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s]: %(message)s", encoding="utf-8")
@@ -104,7 +104,7 @@ if not os.path.exists(f"temp/{mod}/assets/{modinfo["modid"]}/lang/zh_cn.lang"):
 zh_cn = {}
 with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/zh_cn.lang", encoding="utf-8") as f: # 读取zh_cn.lang关于spell的部分并存入字典
     for i in f.readlines():
-        if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[1]:
+        if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
             zh_cn[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
             log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
 
@@ -112,7 +112,7 @@ log("读取en_us.lang", "info")
 en_us = {}
 with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/en_us.lang", encoding="utf-8") as f: # 读取en_us.lang关于spell的部分并存入字典
     for i in f.readlines():
-        if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[1]:
+        if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
             en_us[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
             log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
 
