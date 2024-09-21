@@ -1,4 +1,7 @@
 temp/
+build/
+dist/
 *.json
 *.log
 *.jar
+*.spec

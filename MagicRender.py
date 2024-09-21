@@ -10,7 +10,7 @@ import cv2
 from colorama import Fore, init
 
 __author__ = "MCTF-Alpha-27"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 os.system(f"title MagicRender v{__version__} author: {__author__}")
 logging.basicConfig(filename="latest.log", level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s]: %(message)s", encoding="utf-8")
@@ -90,7 +90,7 @@ if modinfo["mcversion"] != "1.12.2":
     log("该程序目前仅支持导出1.12.2版本的模组，继续导出可能导致意料之外的结果", "warning")
     input("按回车以继续导出...")
 
-log("获取法术", "info")
+log("获取法术图标", "info")
 magics = []
 count = 0
 for i in glob.glob(f"temp/{mod}/assets/{modinfo["modid"]}/textures/spells/*.png"): # 获取魔法，原理是有多少魔法就一定会有多少对应的icon
@@ -105,16 +105,22 @@ zh_cn = {}
 with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/zh_cn.lang", encoding="utf-8") as f: # 读取zh_cn.lang关于spell的部分并存入字典
     for i in f.readlines():
         if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
-            zh_cn[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
-            log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+            if i.split("=")[0].split(":")[-1] in magics:
+                zh_cn[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
+                log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+            else:
+                log(i.split("=")[0].split(":")[-1] + "未发现对应键值，已被筛除", "info")
 
 log("读取en_us.lang", "info")
 en_us = {}
 with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/en_us.lang", encoding="utf-8") as f: # 读取en_us.lang关于spell的部分并存入字典
     for i in f.readlines():
         if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
-            en_us[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
-            log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+            if i.split("=")[0].split(":")[-1] in magics:
+                en_us[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
+                log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+            else:
+                log(i.split("=")[0].split(":")[-1] + "未发现对应键值，已被筛除", "info")
 
 log("法术汉化程度: {:.2%}的法术具有汉化".format(len(zh_cn) / len(en_us)) + f"({len(zh_cn)}/{len(en_us)})", "info")
 
