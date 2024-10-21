@@ -10,7 +10,7 @@ import cv2
 from colorama import Fore, init
 
 __author__ = "MCTF-Alpha-27"
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 os.system(f"title MagicRender v{__version__} author: {__author__}")
 logging.basicConfig(filename="latest.log", level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s]: %(message)s", encoding="utf-8")
@@ -135,8 +135,8 @@ for i in magics: # 生成json信息
     if export["name"] is None: # 如果没有对应中文，将英文作为主要名称
         export["name"] = export["englishName"]
         export["englishName"] = ""
+    export["registerName"] = modinfo["modid"] + ":" + i # 法术注册名
     # 以下内容为了导入格式而保留
-    export["registerName"] = ""
     export["metadata"] = 0
     export["OredictList"] = "[]"
     export["CreativeTabName"] = ""
