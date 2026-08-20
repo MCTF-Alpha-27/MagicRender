@@ -3,6 +3,7 @@ import logging
 import time
 import glob
 import json
+import tomllib
 import os
 import zipfile
 import cv2
@@ -11,7 +12,7 @@ import sys
 from colorama import Fore, init
 
 __author__ = "MCTF-Alpha-27"
-__version__ = "1.0.4"
+__version__ = "1.1.0"
 
 os.system(f"title MagicRender v{__version__} author: {__author__}")
 logging.basicConfig(filename="latest.log", level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s]: %(message)s", encoding="utf-8")
@@ -88,52 +89,91 @@ while True:
     else:
         break
 
-log("解包模组文件: " + mod, "info")
-with zipfile.ZipFile(mod) as f:
-    mod = mod.removesuffix(".jar")
-    f.extractall(f"temp/{mod}")
+try:
+    log("解包模组文件: " + mod, "info")
+    with zipfile.ZipFile(mod) as f:
+        mod = mod.removesuffix(".jar")
+        f.extractall(f"temp/{mod}")
+except Exception:
+    log("解包失败，请查看日志", "exception")
+    input()
+    sys.exit(1)
 
-log("读取模组信息", "info")
-with open(f"temp/{mod}/mcmod.info") as f:
-    modinfo = json.load(f)[0]
-log(modinfo, "info")
-
-if modinfo["mcversion"] != "1.12.2":
-    log("该程序目前仅支持导出1.12.2版本的模组，继续导出可能导致意料之外的结果", "warning")
-    input("按回车以继续导出...")
+try:
+    log("读取模组信息", "info")
+    if os.path.exists(f"temp/{mod}/mcmod.info"):
+        with open(f"temp/{mod}/mcmod.info") as f:
+            modinfo = json.load(f)[0]
+    else:
+        with open(f"temp/{mod}/META-INF/mods.toml", "rb") as f:
+            modinfo = tomllib.load(f)
+    log(modinfo, "info")
+    modid = modinfo["modid"] if "modid" in modinfo else modinfo["mods"][0]["modId"]
+    modversion = modinfo["version"] if "version" in modinfo else modinfo["mods"][0]["version"]
+except Exception:
+    log("读取模组信息失败，请查看日志", "exception")
+    input()
+    sys.exit(1)
 
 try:
     log("获取法术图标", "info")
     magics = []
     count = 0
-    for i in glob.glob(f"temp/{mod}/assets/{modinfo["modid"]}/textures/spells/*.png"): # 获取魔法，原理是有多少魔法就一定会有多少对应的icon
+    for i in glob.glob(f"temp/{mod}/assets/{modid}/textures/spells/*.png"): # 获取魔法，原理是有多少魔法就一定会有多少对应的icon
         magics.append(i.split("\\")[-1].removesuffix(".png"))
         count += 1
         log("发现第" + str(count) + "项: " + i.split("\\")[-1].removesuffix(".png"), "info")
 
-    log("读取zh_cn.lang", "info")
-    if not os.path.exists(f"temp/{mod}/assets/{modinfo["modid"]}/lang/zh_cn.lang"):
-        log(f"未检测到zh_cn.lang文件，该模组可能没有简体中文版本，请前往i18n获取zh_cn.lang后手动放入temp/{mod}/assets/{modinfo["modid"]}/lang中", "error")
+    log("读取zh_cn", "info")
     zh_cn = {}
-    with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/zh_cn.lang", encoding="utf-8") as f: # 读取zh_cn.lang关于spell的部分并存入字典
-        for i in f.readlines():
-            if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
-                if i.split("=")[0].split(":")[-1] in magics:
-                    zh_cn[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
-                    log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
-                else:
-                    log(i.split("=")[0].split(":")[-1] + "未发现对应键值，已被筛除", "info")
+    ensure = ""
+    if not os.path.exists(f"temp/{mod}/assets/{modid}/lang/zh_cn.lang") and not os.path.exists(f"temp/{mod}/assets/{modid}/lang/zh_cn.json"):
+        log(f"未检测到汉化文件，该模组可能没有简体中文版本。建议先请前往i18n获取汉化文件后手动放入temp/{mod}/assets/{modid}/lang中", "warning")
+        ensure = input("若你已放入汉化文件，请按回车继续；若你确认i18n也不存在汉化文件，请输入none跳过汉化文件读取: ")
+    if ensure == "none":
+        log("已跳过汉化文件读取", "info")
+    else:
+        translation_file = f"temp/{mod}/assets/{modid}/lang/zh_cn.lang" if os.path.exists(f"temp/{mod}/assets/{modid}/lang/zh_cn.lang") else f"temp/{mod}/assets/{modid}/lang/zh_cn.json"
+        if translation_file.endswith(".lang"):
+            with open(translation_file, encoding="utf-8") as f: # 读取zh_cn.lang关于spell的部分并存入字典
+                for i in f.readlines():
+                    if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and "." not in i.split("=")[0].split(":")[-1]:
+                        if i.split("=")[0].split(":")[-1] in magics:
+                            zh_cn[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
+                            log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+                        else:
+                            log(i.split("=")[0].split(":")[-1] + "未发现对应键值，已被筛除", "info")
+        else:
+            with open(translation_file, encoding="utf-8") as f: # 读取zh_cn.json关于spell的部分并存入字典
+                zh_cn_json = json.load(f)
+                for key, value in zh_cn_json.items():
+                    if key.startswith("spell.") and not key.endswith(".desc"):
+                        if key.split(".")[-1] in magics:
+                            zh_cn[key.split(".")[-1]] = value
+                            log("完成键值配对: " + key.split(".")[-1] + "=" + value, "info")
+                        else:
+                            log(key.split(".")[-1] + "未发现对应键值，已被筛除", "info")
 
-    log("读取en_us.lang", "info")
+    log("读取en_us", "info")
     en_us = {}
-    with open(f"temp/{mod}/assets/{modinfo["modid"]}/lang/en_us.lang", encoding="utf-8") as f: # 读取en_us.lang关于spell的部分并存入字典
-        for i in f.readlines():
-            if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and not "." in i.split("=")[0].split(":")[-1]:
-                if i.split("=")[0].split(":")[-1] in magics:
-                    en_us[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
-                    log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
-                else:
-                    log(i.split("=")[0].split(":")[-1] + "未发现对应键值，已被筛除", "info")
+    english_file = f"temp/{mod}/assets/{modid}/lang/en_us.lang" if os.path.exists(f"temp/{mod}/assets/{modid}/lang/en_us.lang") else f"temp/{mod}/assets/{modid}/lang/en_us.json"
+    if english_file.endswith(".lang"):
+        with open(english_file, encoding="utf-8") as f: # 读取en_us.lang关于spell的部分并存入字典
+            for i in f.readlines():
+                if i.startswith("spell.") and not i.split("=")[0].endswith(".desc") and "." not in i.split("=")[0].split(":")[-1]:
+                    if i.split("=")[0].split(":")[-1] in magics:
+                        en_us[i.split("=")[0].split(":")[1]] = i.split("=")[1].removesuffix("\n")
+                        log("完成键值配对: " + i.split("=")[0].split(":")[1] + "=" + i.split("=")[1].removesuffix("\n"), "info")
+    else:
+        with open(english_file, encoding="utf-8") as f: # 读取en_us.json关于spell的部分并存入字典
+            en_us_json = json.load(f)
+            for key, value in en_us_json.items():
+                if key.startswith("spell.") and not key.endswith(".desc"):
+                    if key.split(".")[-1] in magics:
+                        en_us[key.split(".")[-1]] = value
+                        log("完成键值配对: " + key.split(".")[-1] + "=" + value, "info")
+                    else:
+                        log(key.split(".")[-1] + "未发现对应键值，已被筛除", "info")
 
     log("法术汉化程度: {:.2%}的法术具有汉化".format(len(zh_cn) / len(en_us)) + f"({len(zh_cn)}/{len(en_us)})", "info")
 except Exception:
@@ -146,14 +186,14 @@ try:
     export = {}
     exports = []
     for i in magics: # 生成json信息
-        if not os.path.exists(f"temp/{mod}/assets/{modinfo["modid"]}/textures/spells/{i}.png") or en_us.get(i) is None:
+        if not os.path.exists(f"temp/{mod}/assets/{modid}/textures/spells/{i}.png") or en_us.get(i) is None:
             continue
         export["name"] = zh_cn.get(i)
         export["englishName"] = en_us.get(i)
         if export["name"] is None: # 如果没有对应中文，将英文作为主要名称
             export["name"] = export["englishName"]
             export["englishName"] = ""
-        export["registerName"] = modinfo["modid"] + ":" + i # 法术注册名
+        export["registerName"] = modid + ":" + i # 法术注册名
         # 以下内容为了导入格式而保留
         export["metadata"] = 0
         export["OredictList"] = "[]"
@@ -162,9 +202,9 @@ try:
         export["maxStackSize"] = ""
         export["maxDurability"] = 1
         # 大小图标转Base64
-        with open(f"temp/{mod}/assets/{modinfo["modid"]}/textures/spells/{i}.png", "rb") as f:
+        with open(f"temp/{mod}/assets/{modid}/textures/spells/{i}.png", "rb") as f:
             export["smallIcon"] = base64.b64encode(f.read()).decode()
-        export["largeIcon"] = image_to_base64(f"temp/{mod}/assets/{modinfo["modid"]}/textures/spells/{i}.png")
+        export["largeIcon"] = image_to_base64(f"temp/{mod}/assets/{modid}/textures/spells/{i}.png")
         log("当前: " + export["name"], "info")
         exports.append(json.dumps(export, ensure_ascii=False) + "\n")
 except Exception:
@@ -173,7 +213,7 @@ except Exception:
     sys.exit(1)
 
 log("写入json信息", "info")
-with open(f"{modinfo["modid"]}-{modinfo["version"]}.json", "w", encoding="utf-8") as f:
+with open(f"{modid}-{modversion}.json", "w", encoding="utf-8") as f:
     f.writelines(exports)
 
 log("导出完成，你现在可以删除temp文件夹", "info")
